@@ -1,0 +1,27 @@
+version: '3.1'
+
+services:
+  # MariaDB Database Service
+  mariadb:
+    image: mariadb:latest
+    container_name: mariadb-compose
+    environment:
+      MYSQL_ROOT_PASSWORD: my-secret-pw
+      MYSQL_DATABASE: mydatabase
+    ports:
+      - "3306:3306"
+
+  # Spring Application Service
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: spring-app-compose
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/mydatabase
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: my-secret-pw
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mariadb

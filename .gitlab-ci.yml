@@ -1,0 +1,50 @@
+variables:
+  MAVEN_OPTS: -Dmaven.repo.local=.m2/repository
+  MAVEN_CLI_OPTS: "-B -DskipTests"
+
+image: maven:latest
+
+stages:
+  - build
+  - test
+  - deploy
+
+cache:
+  paths:
+    - .m2/repository
+    - target
+
+build_job:
+  stage: build
+  script:
+    - echo "Maven compile started"
+    - mvn $MAVEN_CLI_OPTS clean compile
+
+test_job:
+  stage: test
+  script:
+    - echo "Maven test started"
+    - mvn test
+
+
+Deploy_job:
+  stage: deploy
+  script:
+    - 'command -v ssh-agent >/dev/null || ( apt-get update -y && apt-get install openssh-client -y )'
+    - eval $(ssh-agent -s)
+    - mkdir -p ~/.ssh
+    - echo "$SSH_API" | tr -d '\r' > ~/.ssh/deploy_key
+    - chmod 400 ~/.ssh/deploy_key
+    - ssh-add ~/.ssh/deploy_key
+    - ssh-keyscan -H group54.ssh.ap.virtuallab.dev >> ~/.ssh/known_hosts
+    - echo "Maven deploy started"
+    - echo "cd /home/student/api" > sftp-commands.txt
+    - echo "put -r ." >> sftp-commands.txt
+    - echo "bye" >> sftp-commands.txt
+    - sftp -o StrictHostKeyChecking=no -b sftp-commands.txt -P 2254 student@group54.ssh.ap.virtuallab.dev
+    - ssh -o StrictHostKeyChecking=no -v -p 2254 student@group54.ssh.ap.virtuallab.dev "
+      cd /home/student/api &&
+      docker compose down &&
+      docker compose up --build -d
+      "
+
